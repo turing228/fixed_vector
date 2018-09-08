@@ -9,21 +9,14 @@
 #include <cassert>
 #include <cstring>
 
-std::string len_er = "СТОП! Это полиция вместимости вектора. Сейчас ты добавил элемент, когда не было свободного места. На этот раз без штрафов, впредь будь осторожнее!";
+//std::string len_er = "СТОП! Это полиция вместимости вектора. Сейчас ты добавил элемент, когда не было свободного места. На этот раз без штрафов, впредь будь осторожнее!";
 
-template<typename U>
-void copy_all(U *destination, U const *source, std::size_t size,
-              typename std::enable_if<!std::is_trivially_copyable<U>::value>::type * = nullptr) {
-    for (std::size_t i = 0; i != size; ++i)
-        new(destination + i)U(source[i]);
-}
-
-template<typename U>
-void copy_all(U *destination, U const *source, std::size_t size,
-              typename std::enable_if<std::is_trivially_copyable<U>::value>::type * = nullptr) {
-    if (size != 0)
-        memcpy(destination, source, sizeof(U) * size);
-}
+inline
+void throw_len_er() {
+    throw std::length_error(
+            "СТОП! Это полиция вместимости вектора. Сейчас ты добавил элемент, когда не было свободного места. На этот раз без штрафов, впредь будь осторожнее!");
+    return;
+};
 
 template<typename T, std::size_t N>
 struct fixed_vector {
@@ -134,6 +127,36 @@ public:
     //void copy_all(T*, T *, std::size_t);
 };
 
+template<typename U>
+void destroy(U *data, std::size_t size,
+             typename std::enable_if<!std::is_trivially_destructible<U>::value>::type * = nullptr) {
+    for (std::size_t i = size; i != 0; --i) {
+        data[i - 1].~U();
+    }
+}
+
+template<typename U>
+void destroy(U *, std::size_t,
+             typename std::enable_if<std::is_trivially_destructible<U>::value>::type * = nullptr) {}
+
+template<typename U>
+void copy_all(U *destination, U const *source, std::size_t size,
+              typename std::enable_if<!std::is_trivially_copyable<U>::value>::type * = nullptr) {
+    for (std::size_t i = 0; i != size; ++i)
+        new(destination + i)U(source[i]);
+}
+
+template<typename U>
+void copy_all(U *destination, U const *source, std::size_t size,
+              typename std::enable_if<std::is_trivially_copyable<U>::value>::type * = nullptr) {
+    if (size != 0) {
+        destroy(destination, size);
+        for (std::size_t i = 0; i != size; ++i)
+            new(destination + i)U(source[i]);
+        //memcpy(destination, source, sizeof(U) * size);
+    }
+}
+
 template<typename T, std::size_t N>
 fixed_vector<T, N>::fixed_vector() {
     //_data = nullptr;
@@ -155,10 +178,9 @@ fixed_vector<T, N>::fixed_vector(std::size_t n, T value) {
 }*/
 
 template<typename T, std::size_t N>
-fixed_vector<T, N>::fixed_vector(fixed_vector const &other) {
-    fixed_vector();
+fixed_vector<T, N>::fixed_vector(fixed_vector const &other) : fixed_vector() {
     new_fixed_vector(other.size());
-    copy_all(_data, other._data, other._size);
+    copy_all(reinterpret_cast<T *>(_data), reinterpret_cast<const T *>(other._data), other._size);
     _size = other._size;
     _capacity = other._capacity;
 }
@@ -180,7 +202,7 @@ void fixed_vector<T, N>::new_fixed_vector(std::size_t new_capacity) {
     if (new_capacity != 0) {
         //temp._data = (T *) operator new(sizeof(T) * new_capacity);
         temp._capacity = new_capacity;
-        copy_all(temp._data, _data, _size);
+        copy_all(reinterpret_cast<T *>(temp._data), reinterpret_cast<const T *>(_data), _size);
         temp._size = _size;
     }
     swap(temp);
@@ -193,7 +215,7 @@ void fixed_vector<T, N>::push_back(const T &value) {
         new(_data + _size)T(value);
         ++_size;
     } else {
-        throw std::length_error(len_er);
+        throw_len_er();
         /*fixed_vector<T, N> temp;
         temp.new_fixed_vector(increase_capacity());
         copy_all(temp._data, _data, _size);
@@ -217,7 +239,8 @@ T &fixed_vector<T, N>::back() {
 
 template<typename T, std::size_t N>
 T const &fixed_vector<T, N>::back() const {
-    return _data[_size - 1];
+    return *((T *) _data + _size - 1);
+    //return _data[_size - 1];    // todo
 }
 
 template<typename T, std::size_t N>
@@ -227,7 +250,7 @@ T &fixed_vector<T, N>::front() {
 
 template<typename T, std::size_t N>
 T const &fixed_vector<T, N>::front() const {
-    return _data[0];
+    return *((T *) _data);
 }
 
 template<typename T, std::size_t N>
@@ -253,7 +276,7 @@ T const &fixed_vector<T, N>::operator[](std::size_t n) const {
 
 template<typename T, size_t N>
 fixed_vector<T, N> &fixed_vector<T, N>::operator=(const fixed_vector &other) {
-    copy_all(_data, other._data, other._size);
+    copy_all(reinterpret_cast<T *>(_data), reinterpret_cast<const T *>(other._data), other._size);
     return *this;
 }
 
@@ -296,18 +319,6 @@ void fixed_vector<T, N>::shrink_to_fit() {
 
 }
 
-template<typename U>
-void destroy(U *data, std::size_t size,
-             typename std::enable_if<!std::is_trivially_destructible<U>::value>::type * = nullptr) {
-    for (std::size_t i = size; i != 0; --i) {
-        data[i - 1].~U();
-    }
-}
-
-template<typename U>
-void destroy(U *, std::size_t,
-             typename std::enable_if<std::is_trivially_destructible<U>::value>::type * = nullptr) {}
-
 template<typename T, std::size_t N>
 void fixed_vector<T, N>::clear() {
     destroy(_data, _size);
@@ -321,7 +332,7 @@ template<typename T, std::size_t N>
 typename fixed_vector<T, N>::iterator fixed_vector<T, N>::insert(const_iterator _pos, const T &value) {
     iterator pos = (T *) _data + (_pos - (T *) _data);
     if (_size == _capacity) {
-        throw std::length_error(len_er);
+        throw_len_er();
         /*fixed_vector temp;
         temp.new_fixed_vector(increase_capacity());
         copy_all(temp._data, _data, pos - begin());
@@ -398,11 +409,11 @@ void fixed_vector<T, N>::swap(fixed_vector &other) {
     //iterator __data = _data;
     std::size_t __size = _size;
     std::size_t __capacity = _capacity;
-    copy_all(_data, other._data, other._size);
+    copy_all(reinterpret_cast<T *>(_data), reinterpret_cast<const T *>(other._data), other._size);
     //_data = other._data;
     _size = other._size;
     _capacity = other._capacity;
-    copy_all(other._data, _data, _size);
+    copy_all(reinterpret_cast<T *>(other._data), reinterpret_cast<const T *>(_data), _size);
     //other._data = __data;
     other._size = __size;
     other._capacity = __capacity;
