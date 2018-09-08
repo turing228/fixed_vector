@@ -85,7 +85,11 @@ public:
 
     T &back();
 
+    T &front();
+
     T const &back() const;
+
+    T const &front() const;
 
     T &get(std::size_t);
 
@@ -94,6 +98,8 @@ public:
     T &operator[](std::size_t);
 
     T const &operator[](std::size_t) const;
+
+    fixed_vector &operator=(fixed_vector const &other);
 
     std::size_t size() const;
 
@@ -215,6 +221,16 @@ T const &fixed_vector<T, N>::back() const {
 }
 
 template<typename T, std::size_t N>
+T &fixed_vector<T, N>::front() {
+    return *((T *) _data);
+}
+
+template<typename T, std::size_t N>
+T const &fixed_vector<T, N>::front() const {
+    return _data[0];
+}
+
+template<typename T, std::size_t N>
 T &fixed_vector<T, N>::get(std::size_t i) {
     return *((T *) _data + i);
     //return (T)(_data[i]);
@@ -233,6 +249,12 @@ T &fixed_vector<T, N>::operator[](std::size_t n) {
 template<typename T, std::size_t N>
 T const &fixed_vector<T, N>::operator[](std::size_t n) const {
     return _data[n];
+}
+
+template<typename T, size_t N>
+fixed_vector<T, N> &fixed_vector<T, N>::operator=(const fixed_vector &other) {
+    copy_all(_data, other._data, other._size);
+    return *this;
 }
 
 template<typename T, std::size_t N>

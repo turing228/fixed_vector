@@ -192,7 +192,15 @@ int main() {
         std::cout << "Проверка инсертов: " << e.what();
     }
 
-    test_pop_back(v3, 7);
+
+    show_fixed_vector(v2);
+    show_fixed_vector(v3);
+
+    v2 = v3;
+
+    show_fixed_vector(v2);
+    show_fixed_vector(v3);
+    //test_pop_back(v3, 7);
 
     //std::cout << "~~~~~~~" << std::endl;
     //std::cout << "PART 2. Testing fixed_vector<int>(It first, It last)" << std::endl;
