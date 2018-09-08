@@ -138,21 +138,19 @@ void destroy(U *, std::size_t,
              typename std::enable_if<std::is_trivially_destructible<U>::value>::type * = nullptr) {}
 
 template<typename U>
-void copy_all(U *destination, U const *source, std::size_t size,
-              typename std::enable_if<!std::is_trivially_copyable<U>::value>::type * = nullptr) {
-    for (std::size_t i = 0; i != size; ++i)
-        new(destination + i)U(source[i]);
-}
-
-template<typename U>
-void copy_all(U *destination, U const *source, std::size_t size,
-              typename std::enable_if<std::is_trivially_copyable<U>::value>::type * = nullptr) {
+void copy_all(U *destination, U const *source, std::size_t size) {
     if (size != 0) {
         destroy(destination, size);
         for (std::size_t i = 0; i != size; ++i)
             new(destination + i)U(source[i]);
-        //memcpy(destination, source, sizeof(U) * size);
     }
+}
+
+template<typename U>
+void construct_all(U *destination, U const *source, std::size_t size, std::size_t size_destination) {
+    destroy(destination, size_destination);
+    for (std::size_t i = 0; i != size; ++i)
+        new(destination + i)U(source[i]);
 }
 
 template<typename T, std::size_t N>
@@ -238,7 +236,7 @@ T &fixed_vector<T, N>::back() {
 template<typename T, std::size_t N>
 T const &fixed_vector<T, N>::back() const {
     return *((T *) _data + _size - 1);
-    //return _data[_size - 1];    // todo
+    //return _data[_size - 1];
 }
 
 template<typename T, std::size_t N>
@@ -274,7 +272,7 @@ T const &fixed_vector<T, N>::operator[](std::size_t n) const {
 
 template<typename T, size_t N>
 fixed_vector<T, N> &fixed_vector<T, N>::operator=(const fixed_vector &other) {
-    copy_all(reinterpret_cast<T *>(_data), reinterpret_cast<const T *>(other._data), other._size);
+    construct_all(reinterpret_cast<T *>(_data), reinterpret_cast<const T *>(other._data), other._size, _size);
     return *this;
 }
 
