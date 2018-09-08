@@ -405,11 +405,11 @@ void fixed_vector<T, N>::swap(fixed_vector &other) {
     //iterator __data = _data;
     std::size_t __size = _size;
     std::size_t __capacity = _capacity;
-    copy_all(reinterpret_cast<T *>(_data), reinterpret_cast<const T *>(other._data), other._size);
+    construct_all(reinterpret_cast<T *>(_data), reinterpret_cast<const T *>(other._data), other._size, _size);
     //_data = other._data;
     _size = other._size;
     _capacity = other._capacity;
-    copy_all(reinterpret_cast<T *>(other._data), reinterpret_cast<const T *>(_data), _size);
+    construct_all(reinterpret_cast<T *>(other._data), reinterpret_cast<const T *>(_data), _size, other._size);
     //other._data = __data;
     other._size = __size;
     other._capacity = __capacity;
