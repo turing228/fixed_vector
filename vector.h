@@ -2,41 +2,44 @@
 // Created by jesus on 09.06.18.
 //
 
-#ifndef UNTITLED_VECTOR_H
-#define UNTITLED_VECTOR_H
+#ifndef UNTITLED_fixed_vector_H
+#define UNTITLED_fixed_vector_H
 
 #include <iostream>
 #include <cassert>
 #include <cstring>
 
+std::string len_er = "СТОП! Это полиция вместимости вектора. Сейчас ты добавил элемент, когда не было свободного места. На этот раз без штрафов, впредь будь осторожнее!";
+
 template<typename U>
-void copy_all(U *destination, U const *source, size_t size,
+void copy_all(U *destination, U const *source, std::size_t size,
               typename std::enable_if<!std::is_trivially_copyable<U>::value>::type * = nullptr) {
-    for (size_t i = 0; i != size; ++i)
+    for (std::size_t i = 0; i != size; ++i)
         new(destination + i)U(source[i]);
 }
 
 template<typename U>
-void copy_all(U *destination, U const *source, size_t size,
+void copy_all(U *destination, U const *source, std::size_t size,
               typename std::enable_if<std::is_trivially_copyable<U>::value>::type * = nullptr) {
     if (size != 0)
         memcpy(destination, source, sizeof(U) * size);
 }
 
-template<typename T>
-struct vector {
+template<typename T, std::size_t N>
+struct fixed_vector {
     typedef T *iterator;
     typedef T const *const_iterator;
     typedef std::reverse_iterator<iterator> reverse_iterator;
     typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 private:
-    T *_data;
-    size_t _size;
-    size_t _capacity;
+    //T *_data;z
+    typename std::aligned_storage<sizeof(T), alignof(T)>::type _data[N];
+    std::size_t _size;
+    std::size_t _capacity;
 
-    size_t increase_capacity() const;
+    std::size_t increase_capacity() const;
 
-    void new_vector(size_t);
+    void new_fixed_vector(std::size_t);
 
 public:
     iterator begin();
@@ -55,25 +58,26 @@ public:
 
     const_reverse_iterator rend() const;
 
-    vector();
+    fixed_vector();
 
-    vector(size_t, T value = T());
+    //fixed_vector(std::size_t, T value = T());
 
-    vector(vector const &other);
+    fixed_vector(fixed_vector const &other);
 
+/*
     template<typename It>
-    vector(It first, It last) {
-        size_t _number = last - first;
+    fixed_vector(It first, It last) {
+        std::size_t _number = last - first;
         _data = (T *) operator new(sizeof(T) * _number);
         _size = _number;
         _capacity = _number;
 
-        for (size_t i = 0; i < _size; ++i) {
+        for (std::size_t i = 0; i < _size; ++i) {
             _data[i] = *(first + i);
         }
     }
-
-    ~vector();
+*/
+    ~fixed_vector();
 
     void push_back(T const &);
 
@@ -83,88 +87,92 @@ public:
 
     T const &back() const;
 
-    T &get(size_t);
+    T &get(std::size_t);
 
     bool empty() const;
 
-    T &operator[](size_t);
+    T &operator[](std::size_t);
 
-    T const &operator[](size_t) const;
+    T const &operator[](std::size_t) const;
 
-    size_t size() const;
+    std::size_t size() const;
 
-    size_t capacity() const;
+    std::size_t max_size() const;
+
+    std::size_t capacity() const;
 
     T *data();
 
     T const *data() const;
 
-    void reserve(size_t);
+    void reserve(std::size_t);
 
     void shrink_to_fit();
 
     void clear();
 
-    iterator insert(const_iterator pos, T const &value);
+    iterator insert(const_iterator _pos, T const &value);
 
     iterator erase(const_iterator pos);
 
     iterator erase(const_iterator first, const_iterator last);
 
-    void resize(size_t, T value = T());
+    //void resize(std::size_t, T value = T());
 
-    void assign(size_t, T value = T());
+    //void assign(std::size_t, T value = T());
 
-    void swap(vector &);
+    void swap(fixed_vector &);
 
-    //void swap(vector &a, vector &b);
+    //void swap(fixed_vector &a, fixed_vector &b);
 
-    //void copy_all(T*, T *, size_t);
+    //void copy_all(T*, T *, std::size_t);
 };
 
-template<typename T>
-vector<T>::vector() {
-    _data = nullptr;
+template<typename T, std::size_t N>
+fixed_vector<T, N>::fixed_vector() {
+    //_data = nullptr;
     _size = 0;
-    _capacity = 0;
+    _capacity = N;
 }
 
-template<typename T>
-vector<T>::vector(size_t n, T value) {
-    //vector();
-    _data = (T *) operator new(sizeof(T) * n);
+/*
+template<typename T, std::size_t N>
+fixed_vector<T, N>::fixed_vector(std::size_t n, T value) {
+    //fixed_vector();
+    //_data = (T *) operator new(sizeof(T) * n);
     _size = n;
     _capacity = n;
 
-    for (size_t i = 0; i < _size; ++i) {
+    for (std::size_t i = 0; i < _size; ++i) {
         *(_data + i) = value;
     }
-}
+}*/
 
-template<typename T>
-vector<T>::vector(vector const &other) {
-    vector();
-    new_vector(other.size());
+template<typename T, std::size_t N>
+fixed_vector<T, N>::fixed_vector(fixed_vector const &other) {
+    fixed_vector();
+    new_fixed_vector(other.size());
     copy_all(_data, other._data, other._size);
     _size = other._size;
+    _capacity = other._capacity;
 }
 
-template<typename T>
-vector<T>::~vector() {
-    for (size_t i = 0; i < _size; ++i) {
-        _data[i].~T();
+template<typename T, std::size_t N>
+fixed_vector<T, N>::~fixed_vector() {
+    for (std::size_t i = 0; i < _size; ++i) {
+        reinterpret_cast<const T *>(_data + i)->~T();
     }
-    operator delete(_data);
+    //operator delete(_data);
     _size = 0;
     _capacity = 0;
 }
 
-template<typename T>
-void vector<T>::new_vector(size_t new_capacity) {
+template<typename T, std::size_t N>
+void fixed_vector<T, N>::new_fixed_vector(std::size_t new_capacity) {
     assert(new_capacity >= _size);
-    vector<T> temp;
+    fixed_vector<T, N> temp;
     if (new_capacity != 0) {
-        temp._data = (T *) operator new(sizeof(T) * new_capacity);
+        //temp._data = (T *) operator new(sizeof(T) * new_capacity);
         temp._capacity = new_capacity;
         copy_all(temp._data, _data, _size);
         temp._size = _size;
@@ -172,119 +180,128 @@ void vector<T>::new_vector(size_t new_capacity) {
     swap(temp);
 }
 
-template<typename T>
-void vector<T>::push_back(const T &value) {
+template<typename T, std::size_t N>
+void fixed_vector<T, N>::push_back(const T &value) {
     if (_size != _capacity) {
+        //_data[_size] = value;
         new(_data + _size)T(value);
         ++_size;
     } else {
-        vector<T> temp;
-        temp.new_vector(increase_capacity());
+        throw std::length_error(len_er);
+        /*fixed_vector<T, N> temp;
+        temp.new_fixed_vector(increase_capacity());
         copy_all(temp._data, _data, _size);
         temp._size = _size;
         temp.push_back(value);
-        swap(temp);
+        swap(temp);*/
     }
 }
 
-template<typename T>
-void vector<T>::pop_back() {
+template<typename T, std::size_t N>
+void fixed_vector<T, N>::pop_back() {
     assert(_size != 0);
-    _data[_size - 1].~T();
+    reinterpret_cast<const T *>(_data + _size - 1)->~T();
     _size--;
 }
 
-template<typename T>
-T &vector<T>::back() {
+template<typename T, std::size_t N>
+T &fixed_vector<T, N>::back() {
+    return *((T *) _data + _size - 1);
+}
+
+template<typename T, std::size_t N>
+T const &fixed_vector<T, N>::back() const {
     return _data[_size - 1];
 }
 
-template<typename T>
-T const &vector<T>::back() const {
-    return _data[_size - 1];
+template<typename T, std::size_t N>
+T &fixed_vector<T, N>::get(std::size_t i) {
+    return *((T *) _data + i);
+    //return (T)(_data[i]);
 }
 
-template<typename T>
-T &vector<T>::get(size_t i) {
-    return _data[i];
-}
-
-template<typename T>
-bool vector<T>::empty() const {
+template<typename T, std::size_t N>
+bool fixed_vector<T, N>::empty() const {
     return _size == 0;
 }
 
-template<typename T>
-T &vector<T>::operator[](size_t n) {
+template<typename T, std::size_t N>
+T &fixed_vector<T, N>::operator[](std::size_t n) {
     return _data[n];
 }
 
-template<typename T>
-T const &vector<T>::operator[](size_t n) const {
+template<typename T, std::size_t N>
+T const &fixed_vector<T, N>::operator[](std::size_t n) const {
     return _data[n];
 }
 
-template<typename T>
-size_t vector<T>::size() const {
+template<typename T, std::size_t N>
+std::size_t fixed_vector<T, N>::size() const {
     return _size;
 }
 
-template<typename T>
-size_t vector<T>::capacity() const {
+template<typename T, std::size_t N>
+std::size_t fixed_vector<T, N>::max_size() const {
     return _capacity;
 }
 
-template<typename T>
-T *vector<T>::data() {
-    return _data;
+template<typename T, std::size_t N>
+std::size_t fixed_vector<T, N>::capacity() const {
+    return _capacity;
 }
 
-template<typename T>
-T const *vector<T>::data() const {
-    return _data;
+template<typename T, std::size_t N>
+T *fixed_vector<T, N>::data() {
+    return (T *) _data;
 }
 
-template<typename T>
-void vector<T>::reserve(size_t n) {
+template<typename T, std::size_t N>
+T const *fixed_vector<T, N>::data() const {
+    return (T *) _data;
+}
+
+template<typename T, std::size_t N>
+void fixed_vector<T, N>::reserve(std::size_t n) {
     if (n < _capacity) {
         return;
     } else {
-        new_vector(n);
+        new_fixed_vector(n);
     }
 }
 
-template<typename T>
-void vector<T>::shrink_to_fit() {
+template<typename T, std::size_t N>
+void fixed_vector<T, N>::shrink_to_fit() {
 
 }
 
 template<typename U>
-void destroy(U *data, size_t size,
+void destroy(U *data, std::size_t size,
              typename std::enable_if<!std::is_trivially_destructible<U>::value>::type * = nullptr) {
-    for (size_t i = size; i != 0; --i) {
+    for (std::size_t i = size; i != 0; --i) {
         data[i - 1].~U();
     }
 }
 
 template<typename U>
-void destroy(U *, size_t,
+void destroy(U *, std::size_t,
              typename std::enable_if<std::is_trivially_destructible<U>::value>::type * = nullptr) {}
 
-template<typename T>
-void vector<T>::clear() {
+template<typename T, std::size_t N>
+void fixed_vector<T, N>::clear() {
     destroy(_data, _size);
-    /*for (size_t i = _size; i != 0; --i) {
-        _data[i].~T();
-    }*/
+    for (std::size_t i = _size; i != 0; --i) {
+        reinterpret_cast<const T *>(_data + i)->~T();
+    }
     _size = 0;
 }
 
-template<typename T>
-typename vector<T>::iterator vector<T>::insert(const_iterator _pos, const T &value) {
-    iterator pos = _data + (_pos - _data);
+template<typename T, std::size_t N>
+typename fixed_vector<T, N>::iterator fixed_vector<T, N>::insert(const_iterator _pos, const T &value) {
+    iterator pos = (T *) _data + (_pos - (T *) _data);
     if (_size == _capacity) {
-        vector temp;
-        temp.new_vector(increase_capacity());
+        throw std::length_error(len_er);
+        /*fixed_vector temp;
+        temp.new_fixed_vector(increase_capacity());
         copy_all(temp._data, _data, pos - begin());
         temp._size = pos - begin();
         auto result = temp.end();
@@ -292,7 +309,7 @@ typename vector<T>::iterator vector<T>::insert(const_iterator _pos, const T &val
         copy_all(temp.end(), pos, end() - pos);
         temp._size = temp._size + end() - pos;
         swap(temp);
-        return result;
+        return result;*/
     }
     push_back(back());
     for (auto i = (end() - 1); i != pos; --i) {
@@ -304,16 +321,16 @@ typename vector<T>::iterator vector<T>::insert(const_iterator _pos, const T &val
     return pos;
 }
 
-template<typename T>
-typename vector<T>::iterator vector<T>::erase(const_iterator pos) {
-    iterator _pos = _data + (pos - _data);
+template<typename T, std::size_t N>
+typename fixed_vector<T, N>::iterator fixed_vector<T, N>::erase(const_iterator pos) {
+    iterator _pos = (T *) _data + (pos - (T *) _data);
     return erase(_pos, _pos + 1);
 }
 
-template<typename T>
-typename vector<T>::iterator vector<T>::erase(const_iterator first, const_iterator last) {
-    iterator _first = _data + (first - _data);
-    iterator _last = _data + (last - _data);
+template<typename T, std::size_t N>
+typename fixed_vector<T, N>::iterator fixed_vector<T, N>::erase(const_iterator first, const_iterator last) {
+    iterator _first = (T *) _data + (first - (T *) _data);
+    iterator _last = (T *) _data + (last - (T *) _data);
     iterator result = _first;
     iterator finish = end();
     while (_last != finish) {
@@ -325,92 +342,94 @@ typename vector<T>::iterator vector<T>::erase(const_iterator first, const_iterat
         ++_last;
     }
     destroy(_first, _last - _first);
-    _size = _first - _data;
+    _size = _first - (T *) _data;
     return result;
 }
-
-template<typename T>
-void vector<T>::resize(size_t n, T value) {
-    vector<T> temp(n);
+/*
+template<typename T, std::size_t N>
+void fixed_vector<T, N>::resize(std::size_t n, T value) {
+    fixed_vector<T, N> temp(n);
     if (_size > n) {
         copy_all(temp._data, _data, n);
     } else {
         copy_all(temp._data, _data, _size);
-        for (size_t i = _size; i != n; ++i) {
+        for (std::size_t i = _size; i != n; ++i) {
             temp._data[i] = value;
         }
     }
     swap(temp);
-}
-
-template<typename T>
-void vector<T>::assign(size_t n, T value) {
-    vector<T> temp(n);
-    for (size_t i = 0; i != n; ++i) {
-        temp._data[i] = value;
+}*/
+/*
+template<typename T, std::size_t N>
+void fixed_vector<T, N>::assign(std::size_t n, T value) {
+    fixed_vector<T, N> temp;
+    for (std::size_t i = 0; i != n; ++i) {
+        reinterpret_cast<T&>(temp._data[i]) = value;
     }
     destroy(_data, _size);
     swap(temp);
-}
+}*/
 
-template<typename T>
-void vector<T>::swap(vector &other) {
+template<typename T, std::size_t N>
+void fixed_vector<T, N>::swap(fixed_vector &other) {
     using std::swap;
-    iterator __data = _data;
-    size_t __size = _size;
-    size_t __capacity = _capacity;
-    _data = other._data;
+    //iterator __data = _data;
+    std::size_t __size = _size;
+    std::size_t __capacity = _capacity;
+    copy_all(_data, other._data, other._size);
+    //_data = other._data;
     _size = other._size;
     _capacity = other._capacity;
-    other._data = __data;
+    copy_all(other._data, _data, _size);
+    //other._data = __data;
     other._size = __size;
     other._capacity = __capacity;
 
 }
 
-template<typename T>
-size_t vector<T>::increase_capacity() const {
+template<typename T, std::size_t N>
+std::size_t fixed_vector<T, N>::increase_capacity() const {
     return (_capacity + 1) * 2;
 }
 
-template<typename T>
-typename vector<T>::iterator vector<T>::begin() {
-    return _data;
+template<typename T, std::size_t N>
+typename fixed_vector<T, N>::iterator fixed_vector<T, N>::begin() {
+    return (T *) _data;
 }
 
-template<typename T>
-typename vector<T>::iterator vector<T>::end() {
-    return _data + _size;
+template<typename T, std::size_t N>
+typename fixed_vector<T, N>::iterator fixed_vector<T, N>::end() {
+    return (T *) _data + _size;
 }
 
-template<typename T>
-typename vector<T>::const_iterator vector<T>::begin() const {
-    return _data;
+template<typename T, std::size_t N>
+typename fixed_vector<T, N>::const_iterator fixed_vector<T, N>::begin() const {
+    return (T *) _data;
 }
 
-template<typename T>
-typename vector<T>::const_iterator vector<T>::end() const {
-    return _data + _size;
+template<typename T, std::size_t N>
+typename fixed_vector<T, N>::const_iterator fixed_vector<T, N>::end() const {
+    return (T *) _data + _size;
 }
 
-template<typename T>
-typename vector<T>::reverse_iterator vector<T>::rbegin() {
+template<typename T, std::size_t N>
+typename fixed_vector<T, N>::reverse_iterator fixed_vector<T, N>::rbegin() {
     return reverse_iterator(end());
 }
 
-template<typename T>
-typename vector<T>::reverse_iterator vector<T>::rend() {
+template<typename T, std::size_t N>
+typename fixed_vector<T, N>::reverse_iterator fixed_vector<T, N>::rend() {
     return reverse_iterator(begin());
 }
 
-template<typename T>
-typename vector<T>::const_reverse_iterator vector<T>::rbegin() const {
+template<typename T, std::size_t N>
+typename fixed_vector<T, N>::const_reverse_iterator fixed_vector<T, N>::rbegin() const {
     return reverse_iterator(end());
 }
 
-template<typename T>
-typename vector<T>::const_reverse_iterator vector<T>::rend() const {
+template<typename T, std::size_t N>
+typename fixed_vector<T, N>::const_reverse_iterator fixed_vector<T, N>::rend() const {
     return reverse_iterator(begin());
 }
 
-#endif //UNTITLED_VECTOR_H
+#endif //UNTITLED_fixed_vector_H
