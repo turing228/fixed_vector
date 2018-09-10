@@ -140,7 +140,7 @@ void destroy(U *, std::size_t,
 template<typename U>
 void copy_all(U *destination, U const *source, std::size_t size) {
     if (size != 0) {
-        destroy(destination, size);
+        //destroy(destination, size);
         for (std::size_t i = 0; i != size; ++i)
             new(destination + i)U(source[i]);
     }
