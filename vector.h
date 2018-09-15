@@ -341,13 +341,14 @@ typename fixed_vector<T, N>::iterator fixed_vector<T, N>::insert(const_iterator 
         swap(temp);
         return result;*/
     }
-    push_back(back());
+    push_back(value);
     for (auto i = (end() - 1); i != pos; --i) {
-        T _temp = *(i - 1);
-        *(i - 1) = *i;
-        *i = _temp;
+        std::swap(*(i - 1), *i);
+        //T _temp = *(i - 1);
+        //*(i - 1) = *i;
+        //*i = _temp;
     }
-    *pos = value;
+    //*pos = value;
     return pos;
 }
 
